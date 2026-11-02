@@ -1,5 +1,6 @@
 #pragma once
 #include <SDL.h>
+#include "platform.hpp"
 #include <array>
 #include <string>
 #include <unordered_map>
@@ -114,6 +115,7 @@ private:
     int cartridgeScaleFor(const std::string& systemId) const;
     bool systemHiddenFor(const std::string& systemId) const;
     int settingsRowCount() const;
+    Platform platform_;
     SDL_Window* window_=nullptr;
     SDL_Renderer* renderer_=nullptr;
     bool rendererVsync_=false;

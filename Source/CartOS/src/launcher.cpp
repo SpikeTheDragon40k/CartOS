@@ -2,6 +2,7 @@
 #include "launcher.hpp"
 #include "artwork.hpp"
 #include "draw.hpp"
+#include "platform.hpp"
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -130,29 +131,6 @@ std::string resolveConfigPath(const std::string& value,const std::string& sdRoot
     if(value.empty()) return {};
     if(value[0]=='/') return sdPath(value,sdRoot);
     return relativeTo+"/"+value;
-}
-
-int readBatteryPercent(){
-    DIR* directory=opendir("/sys/class/power_supply");
-    if(directory){
-        int percentage=-1;
-        while(const dirent* entry=readdir(directory)){
-            const std::string name=entry->d_name;
-            if(name=="." || name=="..") continue;
-            const std::string base="/sys/class/power_supply/"+name+"/";
-            std::string type=readText(base+"type");
-            type.erase(std::remove_if(type.begin(),type.end(),[](unsigned char c){return std::isspace(c);}),type.end());
-            if(lower(type)!="battery" && lower(name).find("battery")==std::string::npos) continue;
-            std::istringstream capacity(readText(base+"capacity"));
-            int value=-1;
-            if(capacity>>value && value>=0 && value<=100){percentage=value;break;}
-        }
-        closedir(directory);
-        if(percentage>=0) return percentage;
-    }
-    int percentage=-1;
-    SDL_GetPowerInfo(nullptr,&percentage);
-    return percentage>=0 && percentage<=100 ? percentage : -1;
 }
 
 std::string sdPath(const std::string& path,const std::string& sdRoot){
@@ -384,6 +362,10 @@ bool Launcher::init(){
     // to adaptive vsync on panels that cannot page flip.
     SDL_SetHint("SDL_MMIYOO_VSYNC_MODE","strict");
 #endif
+    platform_=platform::detect();
+    std::fprintf(stdout,"Platform: %s (%s), SD root %s, screen %dx%d\n",platform_.name.c_str(),platform_.id.c_str(),
+                 platform_.sdRoot.c_str(),platform_.screenW,platform_.screenH);
+    std::fflush(stdout);
     if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_GAMECONTROLLER|SDL_INIT_EVENTS)!=0){std::fprintf(stderr,"SDL init: %s\n",SDL_GetError());return false;}
 #if !defined(LAUNCHER_DEVICE)
     SDL_SetHint(SDL_HINT_RENDER_DRIVER,"software");
@@ -393,7 +375,15 @@ bool Launcher::init(){
 #else
     const Uint32 windowFlags=SDL_WINDOW_RESIZABLE;
 #endif
-    window_=SDL_CreateWindow("Cartridge Launcher",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,kDesignW,kDesignH,windowFlags);
+    // The layout is drawn on the 752x560 design canvas and SDL scales it to
+    // the window. The V4 and Mini Flip keep the tested 752x560 window; the
+    // Mini Plus (640x480) and other handhelds open at their native panel size.
+    int windowW=kDesignW, windowH=kDesignH;
+    if(platform_.id!="miyoo-mini" && platform_.screenW>0 && platform_.screenH>0){
+        windowW=platform_.screenW;
+        windowH=platform_.screenH;
+    }
+    window_=SDL_CreateWindow("CartOS",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,windowW,windowH,windowFlags);
     if(!window_){std::fprintf(stderr,"window: %s\n",SDL_GetError());return false;}
 #if defined(LAUNCHER_DEVICE)
     renderer_=SDL_CreateRenderer(window_,-1,SDL_RENDERER_PRESENTVSYNC);
@@ -456,11 +446,7 @@ bool Launcher::init(){
 }
 
 void Launcher::discoverGames(){
-    const std::string root="/mnt/SDCARD/Roms";
-    std::string sdRoot="/mnt/SDCARD";
-    const std::string romsSuffix="/Roms";
-    if(root.size()>=romsSuffix.size() && root.compare(root.size()-romsSuffix.size(),romsSuffix.size(),romsSuffix)==0)
-        sdRoot=root.substr(0,root.size()-romsSuffix.size());
+    const std::string sdRoot=platform_.sdRoot;
     sdRoot_=sdRoot;
     systems_.clear();
     categories_.clear();
@@ -543,7 +529,7 @@ void Launcher::discoverGames(){
     rememberedSelections_.assign(categories_.size(),0);
     std::size_t total=0;
     for(const Category& category:categories_) total+=category.entries.size();
-    std::fprintf(stdout,"Discovered %zu entries across %zu lists under %s\n",total,categories_.size(),root.c_str());
+    std::fprintf(stdout,"Discovered %zu entries across %zu lists under %s/Roms\n",total,categories_.size(),sdRoot.c_str());
     std::fflush(stdout);
 }
 
@@ -2355,7 +2341,7 @@ std::string shortLabel(std::string value,size_t limit=30){
 void Launcher::render(float dt){
     const Uint32 now=SDL_GetTicks();
     if(batteryPollAt_==0 || static_cast<Uint32>(now-batteryPollAt_)>=5000){
-        batteryPercent_=readBatteryPercent();
+        batteryPercent_=platform::batteryPercent();
         batteryPollAt_=now;
     }
     if(overlay_==Overlay::Search){renderSearch();return;}

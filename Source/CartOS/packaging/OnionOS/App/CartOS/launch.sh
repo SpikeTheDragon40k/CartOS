@@ -20,6 +20,10 @@ export SDL_VIDEODRIVER=mmiyoo
 export SDL_AUDIODRIVER=mmiyoo
 export EGL_VIDEODRIVER=mmiyoo
 export CARTOS_FONT="$APPDIR/res/font_atlas.png"
+# Optional overrides. CartOS detects these itself, like OnionOS and spruceOS do:
+#   CARTOS_PLATFORM   miyoo-mini | miyoo-mini-plus | any other name
+#   CARTOS_SD_ROOT    SD card mount point (default /mnt/SDCARD)
+#   CARTOS_SCREEN_W / CARTOS_SCREEN_H   panel size (default: read from /dev/fb0)
 export CARTOS_BG_IMAGE="$APPDIR/BG.png"
 cd "$APPDIR"
 

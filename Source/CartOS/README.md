@@ -14,9 +14,37 @@ CartOS is a cartridge-style game browser for OnionOS handhelds. Version 0.1.24 h
 
 See the release `INSTALL.txt` for the alternate-image folder layout, installation steps, and startup-hook details.
 
+## Devices
+
+| Device | Screen | Status |
+|---|---|---|
+| Miyoo Mini V4 | 752x560 | Tested |
+| Miyoo Mini Flip | 750x560 | Expected to work on OnionOS (same layout as V4); untested |
+| Miyoo Mini Plus | 640x480 | Detected and scaled to 640x480; untested on hardware |
+| Other handhelds (Anbernic, Powkiddy, spruceOS devices) | various | Not supported yet: games and apps are launched through OnionOS |
+
+Device details live in `src/platform.cpp`. Detection is file based, like OnionOS and spruceOS, and any value can be overridden in `launch.sh`:
+
+- `CARTOS_PLATFORM`: `miyoo-mini`, `miyoo-mini-plus`, or another name.
+- `CARTOS_SD_ROOT`: SD card mount point (default `/mnt/SDCARD`).
+- `CARTOS_SCREEN_W` and `CARTOS_SCREEN_H`: panel size (default: read from `/dev/fb0`).
+
+## Desktop preview
+
+A native build opens CartOS in a window for trying layout and browsing changes without a handheld. It reads a copy of an OnionOS SD card (at least `Emu/` and `Roms/`). Games and apps do not launch.
+
+```sh
+cmake -S . -B build/host && cmake --build build/host
+CARTOS_SD_ROOT=/path/to/sd-copy CARTOS_FONT=assets/font_atlas.png build/host/cartos
+```
+
+Add `CARTOS_SCREEN_W=640 CARTOS_SCREEN_H=480` to preview the Mini Plus screen. The arrow keys move and Enter opens. Linux needs the SDL2 and libpng development packages.
+
+Handheld builds still use `scripts/build-miyoo.sh` with the Miyoo toolchain.
+
 ## Source layout
 
-- `src/` — launcher, input, artwork discovery, and rendering code.
+- `src/` — launcher, input, artwork discovery, and rendering code. `platform.cpp` holds device detection and battery reading.
 - `assets/` — interface artwork and font assets.
 - `scripts/` — source packaging and Miyoo build helpers.
 - `tools/` — toolchain support and asset-generation utilities.

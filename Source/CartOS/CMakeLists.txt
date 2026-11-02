@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 3.13)
 project(CartOS VERSION 0.1.24 LANGUAGES CXX)
 
-if(NOT CMAKE_CROSSCOMPILING OR NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|armv[0-9].*)$")
-    message(FATAL_ERROR "CartOS builds only for the OnionOS ARM handheld target. Use tools/miyoo-toolchain.cmake.")
+# Handheld builds use tools/miyoo-toolchain.cmake. A plain native build gives a
+# desktop preview window that reads a copy of an SD card from CARTOS_SD_ROOT.
+if(NOT CMAKE_CROSSCOMPILING)
+    message(STATUS "Building the CartOS desktop preview (games and apps do not launch)")
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
@@ -61,6 +63,7 @@ add_executable(cartos
     src/launcher.cpp
     src/artwork.cpp
     src/draw.cpp
+    src/platform.cpp
 )
 target_include_directories(cartos PRIVATE src)
 target_compile_definitions(cartos PRIVATE CARTOS_VERSION="${PROJECT_VERSION}")
