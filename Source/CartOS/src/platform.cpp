@@ -1,17 +1,19 @@
 #include "platform.hpp"
 #include <SDL.h>
-#include <algorithm>
-#include <cctype>
+#include <cstdio>
 #include <cstdlib>
-#include <dirent.h>
 #include <fcntl.h>
-#include <fstream>
-#include <sstream>
 #include <unistd.h>
 #if defined(LAUNCHER_DEVICE)
 #include <linux/fb.h>
 #include <sys/ioctl.h>
 #endif
+
+// OnionOS devices and their panels:
+//   Miyoo Mini V1-V3   2.8"  640x480
+//   Miyoo Mini V4      2.8"  752x560
+//   Miyoo Mini Flip    2.8"  750x560
+//   Miyoo Mini Plus    3.5"  640x480 (physically larger, same resolution as V1-V3)
 
 namespace {
 std::string env(const char* name){
@@ -20,33 +22,23 @@ std::string env(const char* name){
 }
 
 int envInt(const char* name){
-    const std::string value=env(name);
-    if(value.empty()) return 0;
-    const int parsed=std::atoi(value.c_str());
+    const int parsed=std::atoi(env(name).c_str());
     return parsed>0?parsed:0;
 }
 
-bool exists(const std::string& path){
-    return access(path.c_str(),F_OK)==0;
-}
-
-std::string trimmed(const std::string& path){
-    std::ifstream file(path.c_str());
-    if(!file) return {};
-    std::string value;
-    std::getline(file,value);
-    value.erase(std::remove_if(value.begin(),value.end(),[](unsigned char c){return std::isspace(c);}),value.end());
-    return value;
-}
-
-bool readPercent(const std::string& path,int& percent){
-    std::istringstream input(trimmed(path));
-    int value=-1;
-    if(input>>value && value>=0 && value<=100){percent=value;return true;}
-    return false;
-}
-
 #if defined(LAUNCHER_DEVICE)
+// OnionOS writes the physical panel size here, e.g. "752x560".
+bool onionScreenResolution(int& width,int& height){
+    FILE* file=std::fopen("/tmp/screen_resolution","r");
+    if(!file) return false;
+    int w=0,h=0;
+    const bool ok=std::fscanf(file,"%dx%d",&w,&h)==2 && w>0 && h>0;
+    std::fclose(file);
+    if(ok){width=w;height=h;}
+    return ok;
+}
+
+// Fallback for older OnionOS releases: the framebuffer's current mode.
 void framebufferSize(int& width,int& height){
     const int framebuffer=open("/dev/fb0",O_RDONLY);
     if(framebuffer<0) return;
@@ -70,48 +62,35 @@ Platform detect(){
     p.screenW=envInt("CARTOS_SCREEN_W");
     p.screenH=envInt("CARTOS_SCREEN_H");
 #if defined(LAUNCHER_DEVICE)
-    if(p.screenW==0 || p.screenH==0) framebufferSize(p.screenW,p.screenH);
+    if((p.screenW==0 || p.screenH==0) && !onionScreenResolution(p.screenW,p.screenH))
+        framebufferSize(p.screenW,p.screenH);
 #endif
 
     p.id=env("CARTOS_PLATFORM");
     if(p.id.empty()){
 #if defined(LAUNCHER_DEVICE)
         // OnionOS identifies the Mini Plus by its AXP power-chip test tool.
-        if(exists("/customer/app/axp_test")) p.id="miyoo-mini-plus";
-        else if(exists("/customer/app/MainUI") || exists("/mnt/SDCARD/miyoo")) p.id="miyoo-mini";
-        else p.id="linux-handheld";
+        p.id=access("/customer/app/axp_test",F_OK)==0?"miyoo-mini-plus":"miyoo-mini";
 #else
         p.id="desktop";
 #endif
     }
     if(p.id=="miyoo-mini-plus") p.name="Miyoo Mini Plus";
-    else if(p.id=="miyoo-mini") p.name=p.screenH>=560?"Miyoo Mini V4 / Mini Flip (560p)":"Miyoo Mini";
+    else if(p.id=="miyoo-mini") p.name=p.screenH>=560?"Miyoo Mini V4 / Mini Flip":"Miyoo Mini";
     else if(p.id=="desktop") p.name="Desktop preview";
     else p.name=p.id;
     return p;
 }
 
 int batteryPercent(){
-    int percent=-1;
-    // OnionOS keeps the current charge here (written by its keymon service).
-    if(readPercent("/tmp/percBat",percent)) return percent;
-    // spruceOS devices, Anbernic and Powkiddy handhelds use the kernel's
-    // power-supply class instead.
-    if(DIR* directory=opendir("/sys/class/power_supply")){
-        while(const dirent* entry=readdir(directory)){
-            const std::string name=entry->d_name;
-            if(name=="." || name=="..") continue;
-            const std::string base="/sys/class/power_supply/"+name+"/";
-            std::string type=trimmed(base+"type");
-            std::transform(type.begin(),type.end(),type.begin(),[](unsigned char c){return static_cast<char>(std::tolower(c));});
-            std::string lowerName=name;
-            std::transform(lowerName.begin(),lowerName.end(),lowerName.begin(),[](unsigned char c){return static_cast<char>(std::tolower(c));});
-            if(type!="battery" && lowerName.find("battery")==std::string::npos) continue;
-            if(readPercent(base+"capacity",percent)) break;
-        }
-        closedir(directory);
-        if(percent>=0) return percent;
+    // OnionOS's batmon service keeps the current charge here.
+    if(FILE* file=std::fopen("/tmp/percBat","r")){
+        int value=-1;
+        const bool ok=std::fscanf(file,"%d",&value)==1 && value>=0 && value<=100;
+        std::fclose(file);
+        if(ok) return value;
     }
+    int percent=-1;
     SDL_GetPowerInfo(nullptr,&percent);
     return percent>=0 && percent<=100?percent:-1;
 }

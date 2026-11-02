@@ -2,13 +2,13 @@
 
 Changes are listed newest first. Each entry describes the user-visible changes and any important compatibility notes.
 
-## Unreleased — Device support groundwork
+## Unreleased — Miyoo Mini family support
 
-- Detect the handheld at startup, the way OnionOS and spruceOS do: the Miyoo Mini Plus by its AXP power-chip tool, and the screen size from the framebuffer. The result is written to the log.
-- Open the window at the Mini Plus's native 640x480 size. The V4 and Mini Flip keep the tested 752x560 window.
-- Read the battery level from OnionOS's `/tmp/percBat` first, then from the kernel's power-supply files (used on spruceOS, Anbernic and Powkiddy devices), then from SDL.
+- Detect the device the same way OnionOS does: the screen size from `/tmp/screen_resolution` (falling back to the framebuffer) and the Mini Plus from its AXP power-chip tool. The result is written to the log.
+- Open a 640x480 window on 480p screens (Mini Plus, Mini V1-V3). 560p screens (Mini V4, Mini Flip) keep the tested 752x560 window.
+- Read the battery level from OnionOS's `/tmp/percBat`, falling back to SDL.
 - Allow the SD card root, platform and screen size to be overridden from `launch.sh` (`CARTOS_SD_ROOT`, `CARTOS_PLATFORM`, `CARTOS_SCREEN_W`, `CARTOS_SCREEN_H`).
-- Allow a native desktop preview build for trying changes on a PC against a copy of an SD card.
+- Allow a native desktop preview build for trying changes on a PC against a copy of an OnionOS SD card.
 
 ## 0.1.24 — Per-game artwork preview
 

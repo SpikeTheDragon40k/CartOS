@@ -16,18 +16,20 @@ See the release `INSTALL.txt` for the alternate-image folder layout, installatio
 
 ## Devices
 
+CartOS runs on OnionOS. The Miyoo Mini Plus has the physically largest screen, but the V4 and Mini Flip have the highest resolution.
+
 | Device | Screen | Status |
 |---|---|---|
-| Miyoo Mini V4 | 752x560 | Tested |
-| Miyoo Mini Flip | 750x560 | Expected to work on OnionOS (same layout as V4); untested |
-| Miyoo Mini Plus | 640x480 | Detected and scaled to 640x480; untested on hardware |
-| Other handhelds (Anbernic, Powkiddy, spruceOS devices) | various | Not supported yet: games and apps are launched through OnionOS |
+| Miyoo Mini V4 | 2.8" 752x560 | Tested |
+| Miyoo Mini Flip | 2.8" 750x560 | Same layout as V4; untested |
+| Miyoo Mini Plus | 3.5" 640x480 | Scaled to 640x480; untested on hardware |
+| Miyoo Mini V1-V3 | 2.8" 640x480 | Scaled to 640x480; untested on hardware |
 
-Device details live in `src/platform.cpp`. Detection is file based, like OnionOS and spruceOS, and any value can be overridden in `launch.sh`:
+Device details live in `src/platform.cpp` and use the same sources as OnionOS: the screen size from `/tmp/screen_resolution` (or `/dev/fb0` if that file is missing), the Mini Plus from `/customer/app/axp_test`, and the battery level from `/tmp/percBat`. Any value can be overridden in `launch.sh`:
 
-- `CARTOS_PLATFORM`: `miyoo-mini`, `miyoo-mini-plus`, or another name.
+- `CARTOS_PLATFORM`: `miyoo-mini` or `miyoo-mini-plus`.
 - `CARTOS_SD_ROOT`: SD card mount point (default `/mnt/SDCARD`).
-- `CARTOS_SCREEN_W` and `CARTOS_SCREEN_H`: panel size (default: read from `/dev/fb0`).
+- `CARTOS_SCREEN_W` and `CARTOS_SCREEN_H`: panel size.
 
 ## Desktop preview
 
@@ -38,7 +40,7 @@ cmake -S . -B build/host && cmake --build build/host
 CARTOS_SD_ROOT=/path/to/sd-copy CARTOS_FONT=assets/font_atlas.png build/host/cartos
 ```
 
-Add `CARTOS_SCREEN_W=640 CARTOS_SCREEN_H=480` to preview the Mini Plus screen. The arrow keys move and Enter opens. Linux needs the SDL2 and libpng development packages.
+Add `CARTOS_SCREEN_W=640 CARTOS_SCREEN_H=480` to preview a 480p screen (Mini Plus, Mini V1-V3). The arrow keys move and Enter opens. Linux needs the SDL2 and libpng development packages.
 
 Handheld builds still use `scripts/build-miyoo.sh` with the Miyoo toolchain.
 

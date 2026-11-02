@@ -376,10 +376,10 @@ bool Launcher::init(){
     const Uint32 windowFlags=SDL_WINDOW_RESIZABLE;
 #endif
     // The layout is drawn on the 752x560 design canvas and SDL scales it to
-    // the window. The V4 and Mini Flip keep the tested 752x560 window; the
-    // Mini Plus (640x480) and other handhelds open at their native panel size.
+    // the window. 560p panels (Mini V4, Mini Flip) keep the tested 752x560
+    // window. 480p panels (Mini V1-V3, Mini Plus) open at 640x480.
     int windowW=kDesignW, windowH=kDesignH;
-    if(platform_.id!="miyoo-mini" && platform_.screenW>0 && platform_.screenH>0){
+    if(platform_.screenW>0 && platform_.screenH>0 && platform_.screenH<kDesignH){
         windowW=platform_.screenW;
         windowH=platform_.screenH;
     }
